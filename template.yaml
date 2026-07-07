@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+
+  HelloFunction:
+    Type: AWS::Serverless::Function
+
+    Properties:
+
+      Runtime: go1.x
+      Handler: main
+
+      Architectures:
+        - x86_64
+
+      Handler: bootstrap
+
+      CodeUri: backend/
+
+      Timeout: 5
+
+      Events:
+
+        Api:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get

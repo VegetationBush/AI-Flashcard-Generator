@@ -1,0 +1,115 @@
+# ==========================
+# AWS SAM
+# ==========================
+
+.aws-sam/
+samconfig.toml
+
+# SAM build artifacts
+**/.aws-sam/
+
+# CloudFormation generated files
+*.template
+
+
+# ==========================
+# Go
+# ==========================
+
+# Compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build output
+bootstrap
+*.out
+
+# Go test output
+*.test
+
+# Coverage files
+coverage.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+
+# ==========================
+# VS Code
+# ==========================
+
+.vscode/
+
+# Keep useful settings if desired:
+# !.vscode/extensions.json
+
+
+# ==========================
+# Frontend
+# ==========================
+
+# Node dependencies (if you add npm later)
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env
+.env.*
+
+
+# ==========================
+# Secrets
+# ==========================
+
+*.pem
+*.key
+
+credentials
+credentials.json
+
+.aws/
+
+
+# ==========================
+# Docker
+# ==========================
+
+docker-compose.override.yml
+
+
+# ==========================
+# Logs
+# ==========================
+
+*.log
+logs/
+
+
+# ==========================
+# OS files
+# ==========================
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+
+# ==========================
+# Temporary files
+# ==========================
+
+*.tmp
+*.temp
+*.swp
+*.bak
