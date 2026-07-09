@@ -4,27 +4,28 @@ Transform: AWS::Serverless-2016-10-31
 
 Resources:
 
-  HelloFunction:
+  FlashcardGenerator:
     Type: AWS::Serverless::Function
 
     Properties:
 
       Runtime: go1.x
-      Handler: main
+      Handler: generateFlashcard
 
       Architectures:
         - x86_64
 
-      Handler: bootstrap
-
-      CodeUri: backend/
+      CodeUri: generators/
 
       Timeout: 5
+      Environment:
+        Variables:
+          GEMINI_API_KEY: ""
 
       Events:
 
         Api:
           Type: Api
           Properties:
-            Path: /hello
+            Path: /flashcard-generator
             Method: get
