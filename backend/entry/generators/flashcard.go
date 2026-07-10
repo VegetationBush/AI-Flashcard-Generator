@@ -1,4 +1,4 @@
-package main
+package generators
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
 )
 
 func corsHeaders() map[string]string {
@@ -32,7 +31,7 @@ type GeminiPart struct {
 	Text string `json:"text"`
 }
 
-func handler(
+func FlashcardHandler(
 	ctx context.Context,
 	request events.APIGatewayProxyRequest,
 ) (events.APIGatewayProxyResponse, error) {
@@ -111,8 +110,4 @@ func handler(
 		Headers:    corsHeaders(),
 		Body:       string(result),
 	}, nil
-}
-
-func main() {
-	lambda.Start(handler)
 }

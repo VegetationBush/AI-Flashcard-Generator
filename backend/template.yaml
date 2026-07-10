@@ -1,31 +1,29 @@
 AWSTemplateFormatVersion: '2010-09-09'
-
 Transform: AWS::Serverless-2016-10-31
 
 Resources:
-
   FlashcardGenerator:
     Type: AWS::Serverless::Function
-
     Properties:
-
-      Runtime: go1.x
-      Handler: generateFlashcard
-
+      PackageType: Image
       Architectures:
         - x86_64
-
-      CodeUri: generators/
-
       Timeout: 5
       Environment:
         Variables:
-          GEMINI_API_KEY: ""
-
+          GEMINI_API_KEY: !Ref GeminiApiKey
       Events:
-
         Api:
           Type: Api
           Properties:
             Path: /flashcard-generator
             Method: get
+    Metadata:
+      DockerTag: flashcard-backend
+      DockerContext: .
+      Dockerfile: Dockerfile
+
+Parameters:
+  GeminiApiKey:
+    Type: String
+    NoEcho: true
