@@ -1,14 +1,12 @@
 package generators
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
-	"net/http"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
+	"google.golang.org/genai"
 )
 
 func corsHeaders() map[string]string {
@@ -19,16 +17,24 @@ func corsHeaders() map[string]string {
 	}
 }
 
-type GeminiRequest struct {
-	Contents []GeminiContent `json:"contents"`
-}
+// client is created once and reused across warm Lambda invocations.
+var client *genai.Client
 
-type GeminiContent struct {
-	Parts []GeminiPart `json:"parts"`
-}
+func getClient(ctx context.Context) (*genai.Client, error) {
+	if client != nil {
+		return client, nil
+	}
 
-type GeminiPart struct {
-	Text string `json:"text"`
+	c, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  os.Getenv("GEMINI_API_KEY"),
+		Backend: genai.BackendGeminiAPI,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	client = c
+	return client, nil
 }
 
 func FlashcardHandler(
@@ -38,24 +44,16 @@ func FlashcardHandler(
 
 	topic := request.QueryStringParameters["topic"]
 	if topic == "" {
-		topic = "Give me a short sentence"
+		return events.APIGatewayProxyResponse{
+			StatusCode: 500,
+			Headers:    corsHeaders(),
+			Body:       "Cannot pass empty string",
+		}, nil
 	}
 
 	prompt := topic // fmt.Sprintf("Give me a short sentence about %s.", topic)
 
-	body := GeminiRequest{
-		Contents: []GeminiContent{
-			{
-				Parts: []GeminiPart{
-					{
-						Text: prompt,
-					},
-				},
-			},
-		},
-	}
-
-	b, err := json.Marshal(body)
+	geminiClient, err := getClient(ctx)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
@@ -64,14 +62,30 @@ func FlashcardHandler(
 		}, nil
 	}
 
-	apiKey := os.Getenv("GEMINI_API_KEY")
+	var items int64 = 2
+	schema := &genai.Schema{
+		Type: genai.TypeArray,
+		Items: &genai.Schema{
+			Type: genai.TypeArray,
+			Items: &genai.Schema{
+				Type: genai.TypeString,
+			},
+			MinItems:    &items,
+			MaxItems:    &items,
+			Description: "ind 0 = question, ind 1 = answer",
+		},
+	}
 
-	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=" + apiKey
+	config := &genai.GenerateContentConfig{
+		ResponseMIMEType: "application/json",
+		ResponseSchema:   schema,
+	}
 
-	httpReq, err := http.NewRequest(
-		"POST",
-		url,
-		bytes.NewReader(b),
+	result, err := geminiClient.Models.GenerateContent(
+		ctx,
+		"gemini-3.1-flash-lite",
+		genai.Text(prompt),
+		config,
 	)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
@@ -80,23 +94,16 @@ func FlashcardHandler(
 			Body:       err.Error(),
 		}, nil
 	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-
-	resp, err := client.Do(httpReq)
-	if err != nil {
+	var flashcards [][]string
+	if err := json.Unmarshal([]byte(result.Text()), &flashcards); err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
 			Headers:    corsHeaders(),
-			Body:       err.Error(),
+			Body:       "failed to parse flashcards: " + err.Error(),
 		}, nil
 	}
 
-	defer resp.Body.Close()
-
-	result, err := io.ReadAll(resp.Body)
+	responseBody, err := json.Marshal(flashcards)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
@@ -108,6 +115,6 @@ func FlashcardHandler(
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Headers:    corsHeaders(),
-		Body:       string(result),
+		Body:       string(responseBody),
 	}, nil
 }

@@ -1,32 +1,41 @@
 import { useState } from "react";
 import "./App.css";
+// import * as pdfjsLib from "pdfjs-dist";
+
+const URL = import.meta.env.VITE_API_URL
 
 function App() {
-  const [message, setMessage] = useState("");
-  const topic = "What is 5 + 5"
+  const [message, setMessage] = useState<string[][] | null>();
+  const topic = "Give 5 questions and 5 answers"
   async function callLambda() {
     try {
-      const response = await fetch(`http://localhost:3000/flashcard-generator?topic=${encodeURIComponent(topic)}`, {
+      const response = await fetch(`${URL}/flashcard-generator?topic=${encodeURIComponent(topic)}`, {
         method: "GET",
       });
 
       const data = await response.json();
       console.log(data)
-      setMessage(data.candidates[0].content.parts[0].text);
+      setMessage(data);
     } catch (error) {
       console.error(error);
-      setMessage("Failed to connect to backend");
     }
   }
-
+  
   return (
-    <>
+    <div>
       <button onClick={callLambda}>
         Call Backend
       </button>
 
-      <p>{message}</p>
-    </>
+      {
+        message?.map((item,idx) => {
+          return <div key={idx}>
+            <h2>{item[0]}</h2>
+            <p>{item[1]}</p>
+          </div>
+        })
+      }
+    </div>
   );
 }
 
