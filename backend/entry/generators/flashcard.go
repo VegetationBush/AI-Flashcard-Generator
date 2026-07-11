@@ -51,7 +51,7 @@ func FlashcardHandler(
 		}, nil
 	}
 
-	prompt := topic // fmt.Sprintf("Give me a short sentence about %s.", topic)
+	prompt := topic
 
 	geminiClient, err := getClient(ctx)
 	if err != nil {
