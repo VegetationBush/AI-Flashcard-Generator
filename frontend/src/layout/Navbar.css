@@ -1,0 +1,7 @@
+.navbar {
+  position: relative;
+  width: 100%;
+  background: var(--background);
+  box-shadow: var(--shadow-sm);
+  height: 4rem;
+}

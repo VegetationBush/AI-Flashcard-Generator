@@ -4,9 +4,4 @@
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
   ],
-  "compilerOptions": {
-    "types": ["node"],
-    "module": "commonjs",
-    "target": "ES2020"
-  }
 }
