@@ -4,4 +4,8 @@
   border-radius: 12px;
   background: var(--card);
   box-shadow: var(--shadow-lg);
+  padding: 4rem;
+  box-shadow: var(--shadow-lg);
+  box-sizing: border-box;
+  transition: 0.2s ease;
 }
