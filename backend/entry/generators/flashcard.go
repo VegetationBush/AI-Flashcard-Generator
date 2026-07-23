@@ -3,7 +3,9 @@ package generators
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"google.golang.org/genai"
@@ -14,11 +16,16 @@ func corsHeaders() map[string]string {
 		"Access-Control-Allow-Origin":  "http://localhost:5173",
 		"Access-Control-Allow-Headers": "Content-Type,Authorization",
 		"Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+		"Content-Type":                 "application/json",
 	}
 }
 
 // client is created once and reused across warm Lambda invocations.
 var client *genai.Client
+
+type flashcardRequest struct {
+	Content string `json:"content"`
+}
 
 func getClient(ctx context.Context) (*genai.Client, error) {
 	if client != nil {
@@ -42,16 +49,44 @@ func FlashcardHandler(
 	request events.APIGatewayProxyRequest,
 ) (events.APIGatewayProxyResponse, error) {
 
-	topic := request.QueryStringParameters["topic"]
-	if topic == "" {
+	if request.HTTPMethod == "OPTIONS" {
 		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
+			StatusCode: 204,
 			Headers:    corsHeaders(),
-			Body:       "Cannot pass empty string",
 		}, nil
 	}
 
-	prompt := topic
+	if request.HTTPMethod != "POST" {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 405,
+			Headers:    corsHeaders(),
+			Body:       `{"error":"method not allowed"}`,
+		}, nil
+	}
+
+	var requestBody flashcardRequest
+	if err := json.Unmarshal([]byte(request.Body), &requestBody); err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 400,
+			Headers:    corsHeaders(),
+			Body:       `{"error":"invalid JSON request body"}`,
+		}, nil
+	}
+
+	content := strings.TrimSpace(requestBody.Content)
+	if content == "" {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 400,
+			Headers:    corsHeaders(),
+			Body:       `{"error":"document content cannot be empty"}`,
+		}, nil
+	}
+
+	prompt := fmt.Sprintf(
+		"Create exactly 10 useful study flashcards from the document below. "+
+			"Each question must be answerable from the document, and each answer should be concise and accurate.\n\nDOCUMENT:\n%s",
+		content,
+	)
 
 	geminiClient, err := getClient(ctx)
 	if err != nil {
@@ -63,8 +98,11 @@ func FlashcardHandler(
 	}
 
 	var items int64 = 2
+	var flashcardCount int64 = 10
 	schema := &genai.Schema{
-		Type: genai.TypeArray,
+		Type:     genai.TypeArray,
+		MinItems: &flashcardCount,
+		MaxItems: &flashcardCount,
 		Items: &genai.Schema{
 			Type: genai.TypeArray,
 			Items: &genai.Schema{
