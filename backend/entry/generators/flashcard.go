@@ -83,7 +83,7 @@ func FlashcardHandler(
 	}
 
 	prompt := fmt.Sprintf(
-		"Create exactly 10 useful study flashcards from the document below. "+
+		"Create as many flashcards as nessecary (max 50) for the document attached."+
 			"Each question must be answerable from the document, and each answer should be concise and accurate.\n\nDOCUMENT:\n%s",
 		content,
 	)
