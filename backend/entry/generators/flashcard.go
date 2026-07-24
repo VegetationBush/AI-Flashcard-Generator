@@ -98,11 +98,12 @@ func FlashcardHandler(
 	}
 
 	var items int64 = 2
-	var flashcardCount int64 = 10
+	var flashcardMinCount int64 = 5
+	var flashcardMaxCount int64 = 50
 	schema := &genai.Schema{
 		Type:     genai.TypeArray,
-		MinItems: &flashcardCount,
-		MaxItems: &flashcardCount,
+		MinItems: &flashcardMinCount,
+		MaxItems: &flashcardMaxCount,
 		Items: &genai.Schema{
 			Type: genai.TypeArray,
 			Items: &genai.Schema{
