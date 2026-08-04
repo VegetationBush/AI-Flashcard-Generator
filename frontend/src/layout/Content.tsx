@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import JSZip from "jszip";
 import * as pdfjs from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import Flashcard from "@/elements/Flashcard";
@@ -11,6 +12,16 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const WORD_PATTERN = /[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu;
 const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const TEXT_EXTENSIONS = new Set([
+  "txt",
+  "md",
+  "csv",
+  "json",
+  "xml",
+  "html",
+  "htm",
+  "rtf",
+]);
 
 function App() {
   const [message, setMessage] = useState<string[][]>([]);
@@ -21,6 +32,26 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [parseError, setParseError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function decodeXmlEntities(value: string) {
+    return value
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'");
+  }
+
+  function extractTextFromXml(xml: string, tagName: string) {
+    const pattern = new RegExp(`<${tagName}[^>]*>(.*?)<\\/${tagName}>`, "gis");
+    const matches = Array.from(xml.matchAll(pattern));
+    return matches
+      .map((match) => decodeXmlEntities(match[1]).replace(/<[^>]+>/g, " "))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
 
   async function extractPdfText(file: File) {
     const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
@@ -36,6 +67,58 @@ function App() {
     }
 
     return pages.join("\n");
+  }
+
+  async function extractOfficeXmlText(file: File, archiveName: string, textTag: string) {
+    const archive = await JSZip.loadAsync(await file.arrayBuffer());
+    const targetFile = archive.file(archiveName);
+
+    if (!targetFile) {
+      throw new Error(`Could not locate the ${archiveName} file inside the uploaded document.`);
+    }
+
+    const xml = await targetFile.async("text");
+    return extractTextFromXml(xml, textTag);
+  }
+
+  async function extractDocxText(file: File) {
+    return extractOfficeXmlText(file, "word/document.xml", "w:t");
+  }
+
+  async function extractPptxText(file: File) {
+    const archive = await JSZip.loadAsync(await file.arrayBuffer());
+    const slideFiles = archive.file(/^ppt\/slides\/slide\d+\.xml$/);
+
+    const slideTexts = await Promise.all(
+      slideFiles.map(async (slideFile) => {
+        const xml = await slideFile.async("text");
+        return extractTextFromXml(xml, "a:t");
+      }),
+    );
+
+    return slideTexts.filter(Boolean).join("\n");
+  }
+
+  async function extractDocumentText(file: File) {
+    const extension = file.name.split(".").pop()?.toLowerCase();
+
+    if (extension === "pdf") {
+      return extractPdfText(file);
+    }
+
+    if (extension === "docx") {
+      return extractDocxText(file);
+    }
+
+    if (extension === "pptx") {
+      return extractPptxText(file);
+    }
+
+    if (TEXT_EXTENSIONS.has(extension ?? "")) {
+      return file.text();
+    }
+
+    return file.text();
   }
 
   async function generateFlashcards(content: string) {
@@ -78,8 +161,8 @@ function App() {
     event.target.value = "";
 
     const extension = file.name.split(".").pop()?.toLowerCase();
-    if (extension !== "pdf" && extension !== "txt") {
-      setParseError("Please choose a PDF or TXT file.");
+    if (!extension) {
+      setParseError("Please choose a supported document file.");
       return;
     }
 
@@ -91,14 +174,14 @@ function App() {
 
     let parsedWords: string[];
     try {
-      const text = extension === "pdf" ? await extractPdfText(file) : await file.text();
+      const text = await extractDocumentText(file);
       parsedWords = text.match(WORD_PATTERN) ?? [];
       setFileName(file.name);
       setWords(parsedWords);
     } catch (error) {
       console.error(error);
       setFileName("");
-      setParseError("This file could not be parsed. It may be damaged or image-only.");
+      setParseError("This file could not be parsed. It may be damaged, encrypted, or in an unsupported format.");
       setIsParsing(false);
       return;
     }
@@ -126,13 +209,13 @@ function App() {
       <section className="file-upload" aria-labelledby="file-upload-title">
         <div>
           <h2 id="file-upload-title">Import study material</h2>
-          <p>Upload a PDF or text file to extract its words.</p>
+          <p>Upload a document or text file to parse.</p>
         </div>
         <input
           ref={fileInputRef}
           className="file-input"
           type="file"
-          accept=".pdf,.txt,application/pdf,text/plain"
+          accept=".pdf,.txt,.docx,.pptx,.md,.csv,.json,.xml,.html,.htm,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown,text/csv,application/json,application/xml,text/xml,text/html"
           onChange={handleFileChange}
         />
         <Button
@@ -141,7 +224,7 @@ function App() {
           onClick={() => fileInputRef.current?.click()}
           disabled={isParsing || isGenerating}
         >
-          {isParsing ? "Parsing…" : isGenerating ? "Generating…" : "Upload PDF or TXT"}
+          {isParsing ? "Parsing…" : isGenerating ? "Generating…" : "Upload a document"}
         </Button>
         {parseError && <p className="parse-error" role="alert">{parseError}</p>}
         {fileName && !parseError && (

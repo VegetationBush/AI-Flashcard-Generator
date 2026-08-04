@@ -5,3 +5,14 @@ env_vars = "env.json"
 
 [default.local_invoke.parameters]
 env_vars = "env.json"
+[default.deploy.parameters]
+stack_name = "ai-study-tool"
+resolve_s3 = true
+s3_prefix = "ai-study-tool"
+region = "ca-central-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = ["FlashcardGenerator=478738528702.dkr.ecr.ca-central-1.amazonaws.com/aistudytool1e755c29/flashcardgeneratorc5ca5b34repo"]
+
+[default.global.parameters]
+region = "ca-central-1"
