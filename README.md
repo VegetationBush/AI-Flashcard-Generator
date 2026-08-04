@@ -1,6 +1,4 @@
-﻿TODO: File uploads, parsing, visuals.
-
-# AI Study Tool
+﻿# AI Study Tool
 
 An AI-powered document processing application that transforms uploaded files into structured schemas using a serverless backend and generative AI. 
 
